@@ -1,0 +1,46 @@
+---
+title: "Loewen et al. Exploratory Analysis"
+author: "Spencer Braun"
+date: "11/5/2020"
+output: html_document
+---
+
+
+
+```{r, message=F}
+library(DOS2)
+library(optmatch)
+library(RItools)
+library(rcbalance)
+
+library(readstata13)
+library(tidyverse)
+library(haven)
+
+source("utility.R")
+```
+
+
+```{r}
+ces <- read_dta("original_data/CES_DATA.dta")
+main <- read_dta("original_data/Main\ Data.dta")
+reoffering <- read.dta13("original_data/Reoffering\ Data.dta")
+```
+
+
+
+```{r}
+main %>% names()
+```
+
+```{r}
+ces %>% head()
+```
+
+
+
+```{r}
+reoffering %>%
+  filter(placeonlist != place2006)
+```
+
