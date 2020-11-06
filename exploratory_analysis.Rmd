@@ -23,7 +23,7 @@ source("utility.R")
 
 ```{r}
 ces <- read_dta("original_data/CES_DATA.dta")
-main <- read_dta("original_data/Main\ Data.dta")
+main.raw <- read_dta("original_data/Main\ Data.dta")
 reoffering <- read.dta13("original_data/Reoffering\ Data.dta")
 ```
 
@@ -42,5 +42,70 @@ ces %>% head()
 ```{r}
 reoffering %>%
   filter(placeonlist != place2006)
+
+reoffering %>%
+  group_by(mp) %>%
+  summarise(count=n())
+
+reoffering %>%
+  filter(reoffered == 1) %>%
+  filter(placeonlist != place2006)
+```
+
+
+Recreate Main Stata analysis
+```{r}
+main <- main.raw %>%
+  filter(excluded != 1) %>%
+  mutate(senate = ifelse(is.na(senate), 0, 1)) %>%
+  mutate(optout = case_when(
+    (place_on_paper <= 87) & (election == 2006) & (check == 0) ~ 1, #guessing place on paper = place from do file 
+    (place_on_paper <= 117) & (election == 2008) & (check == 0) ~ 1,
+    T ~ 0
+  )) %>%
+  mutate(p2p = case_when(
+     (place_on_paper <= 87) & (election == 2006) ~ 1,
+     (place_on_paper <= 117) & (election == 2008) ~ 1,
+     T ~ 0
+  )) %>%
+  mutate(transfersshare = transfers / limit) %>%
+  mutate(transfersshare = ifelse(is.na(transfersshare) & !is.na(spending), 0, transfersshare)) %>%
+  mutate(donationsshare = amount / limit) %>%
+  mutate(donationsshare = ifelse(is.na(donationsshare) & !is.na(spending), 0, transfersshare)) %>%
+  mutate(share = ifelse(!is.na(transfersshare + donationsshare) & (transfersshare + donationsshare > 1), 1, transfersshare + donationsshare))
+  
+
+
+# main.raw %>% names() %>% sort()
+# main.raw %>% select(order_of_precedence)
+# main.raw %>% select(place_on_paper) 
+```
+
+
+
+```{r}
+main %>% select(gov)
+t.test(current_vote ~ p2p, data=main %>% filter(gov == 1))
+```
+
+```{r}
+t.test(current_vote ~ p2p, data=main %>% filter(gov == 0))
+```
+
+```{r}
+main %>%
+  select(p2p, current_vote, gov) %>%
+  group_by(p2p, gov) %>%
+  summarise(mean_vote = mean(current_vote)) %>%
+  ggplot() + geom_bar(aes(x=factor(p2p), y=mean_vote, fill=factor(p2p)), stat='identity') +
+  facet_wrap(.~factor(gov)) +
+  scale_y_continuous(limits=c(0,100), breaks = seq(0,100,by=20)) + 
+  theme_bw()
+```
+
+
+Mediation tests
+```{r}
+
 ```
 
