@@ -22,12 +22,12 @@ source("utility.R")
 
 
 ```{r}
-ces <- read_dta("original_data/CES_DATA.dta")
+ces.raw <- read_dta("original_data/CES_DATA.dta")
 main.raw <- read_dta("original_data/Main\ Data.dta")
-reoffering <- read.dta13("original_data/Reoffering\ Data.dta")
+reoffering.raw <- read.dta13("original_data/Reoffering\ Data.dta")
 ```
 
-
+### Exploratory
 
 ```{r}
 main %>% names()
@@ -53,19 +53,19 @@ reoffering %>%
 ```
 
 
-Recreate Main Stata analysis
+### Main Analysis 
 ```{r}
 main <- main.raw %>%
   filter(excluded != 1) %>%
   mutate(senate = ifelse(is.na(senate), 0, 1)) %>%
   mutate(optout = case_when(
     (place_on_paper <= 87) & (election == 2006) & (check == 0) ~ 1, #guessing place on paper = place from do file 
-    (place_on_paper <= 117) & (election == 2008) & (check == 0) ~ 1,
+    (place_on_paper < 117) & (election == 2008) & (check == 0) ~ 1,
     T ~ 0
   )) %>%
   mutate(p2p = case_when(
      (place_on_paper <= 87) & (election == 2006) ~ 1,
-     (place_on_paper <= 117) & (election == 2008) ~ 1,
+     (place_on_paper < 117) & (election == 2008) ~ 1,
      T ~ 0
   )) %>%
   mutate(transfersshare = transfers / limit) %>%
@@ -106,6 +106,148 @@ main %>%
 
 Mediation tests
 ```{r}
+main %>% select(media_mentions)
+
+t.test(media_mentions ~ p2p, data=main %>% filter(gov == 1))
+```
+
+```{r}
+t.test(quality ~ p2p, data=main %>% filter(gov == 1))
+```
+
+```{r}
+t.test(share ~ p2p, data=main %>% filter(gov == 1))
+```
+
+****SUPPORTING INFORMATION
+```{r}
+
+get_levels <- function(bys) main %>% select(!!!bys) %>% distinct() %>% pull(.)
+sapply(get_levels("y2006"), function(level) t.test(p2p~ gov, data=main %>% filter(y2006 == level)))
+```
+
+```{r}
+sapply(get_levels("gov"), function(level) t.test(p2p~ y2006, data=main %>% filter(gov == level)))
+```
+
+Randomization checks
+
+```{r}
+main %>% select(years_served)
+t.test(years_served ~ p2p, data=main)
+```
+
+```{r}
+main %>% select(exminister)
+t.test(exminister ~ p2p, data=main)
+```
+
+
+
+### Reoffering Analysis
+
+```{r}
+reoffering <- reoffering.raw %>%
+  mutate(p2p = case_when(
+       (placeonlist <= 87) & (election == 2006) ~ 1,
+       (placeonlist < 117) & (election == 2008) ~ 1,
+       T ~ 0
+    )) %>%
+  mutate(place = case_when(
+    election == 2006 ~ placeonlist / 237,
+    election == 2008 ~ placeonlist / 255
+  ))
+```
+
+
+```{r}
+table.si4 <- glm(reoffered ~ p2p, data=reoffering, family='binomial')
+table.si4.2006 <- glm(reoffered ~ p2p, data=reoffering %>% filter(election == 2006), family='binomial')
+table.si4.2008<- glm(reoffered ~ p2p, data=reoffering %>% filter(election == 2008), family='binomial')
+
+
+summary(table.si4)
+summary(table.si4.2006)
+summary(table.si4.2008)
+```
+
+
+```{r}
+table.si5 <- glm(reoffered ~ place, data=reoffering, family='binomial')
+table.si5.2006 <- glm(reoffered ~ place, data=reoffering %>% filter(election == 2006), family='binomial')
+table.si5.2008 <- glm(reoffered ~ place, data=reoffering %>% filter(election == 2008), family='binomial')
+
+
+summary(table.si5)
+summary(table.si5.2006)
+summary(table.si5.2008)
+```
+
+
+
+### CES Analysis 
+
+```{r}
+ces <- ces.raw %>%
+  mutate(id= row_number()) %>%
+  mutate(panel = ifelse(!is.na(ces06_pes_a1) & !is.na(survey_type040608), 1, 0)) %>%
+  mutate(election2006 = ifelse(is.na(ces06_pes_a1), 0, 1)) %>%
+  mutate(election2008 = ifelse(is.na(ces08_pes_a1), 0, 1)) %>%
+  mutate(local08 = case_when(
+    ces08_pes_b8d == 5 ~ 0,
+    ces08_pes_b8d == 8 ~ 0,
+    ces08_pes_b8d == 1 ~ 1
+  )) %>%
+  mutate(local06 = case_when(
+    ces06_pes_i1 == 5 ~ 0,
+    ces06_pes_i1 == 8 ~ 0,
+    ces06_pes_i1 == 1 ~ 1
+  )) %>%
+  mutate(locallike08 = case_when(
+    ces08_pes_b8e == 2 ~ "CON",
+    ces08_pes_b8e == 1 ~ "LIB",
+    ces08_pes_b8e == 3 ~ "NDP",
+    ces08_pes_b8e == 4 ~ "BQ"
+  )) %>%
+  mutate(locallike06 = case_when(
+    ces06_pes_i2 == 2 ~ "CON",
+    ces06_pes_i2 == 1 ~ "LIB",
+    ces06_pes_i2 == 3 ~ "NDP",
+    ces06_pes_i2 == 4 ~ "BQ"
+  )) %>%
+  mutate(incumbentlike06 = case_when(
+    (lib2006 == 1) & (locallike06 != "LIB")~ 0,
+    (lib2006 == 1) & (locallike06 == "LIB")~ 1
+  )) %>%
+  mutate(incumbentlike08 = case_when(
+    (con2008 == 1) & (locallike08 != "CON")~ 0,
+    (con2008 == 1) & (locallike08 == "CON")~ 1
+  )) %>%
+  mutate(gov = case_when(
+    (lib2006 == 0) & (election2006 == 1) ~ 0,
+    (con2008 == 0) & (election2008 == 1) ~ 0,
+    (lib2006 == 1) & (election2006 == 1) ~ 0,
+    (con2008 == 1) & (election2008 == 1) ~ 0
+  ))
+
+
+```
+
+
+```{r}
+ctab1 <- with(
+  ces %>% filter(lib2006 == 1) %>% filter(election2006 ==1), 
+  table(incumbentlike06, p2p2006, useNA = "ifany")
+  )
+
+chisq.test(ctab1)
+
+ctab2 <- with(
+  ces %>% filter(con2008 == 1) %>% filter(election2008 ==1), 
+  table(incumbentlike08, p2p2008, useNA = "ifany")
+  )
+
+chisq.test(ctab2)
 
 ```
 
