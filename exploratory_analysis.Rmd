@@ -27,27 +27,34 @@ main.raw <- read_dta("original_data/Main\ Data.dta")
 reoffering.raw <- read.dta13("original_data/Reoffering\ Data.dta")
 ```
 
+```{r}
+View(ces.raw)
+View(main.raw)
+View(reoffering.raw)
+
+```
+
 ### Exploratory
 
 ```{r}
-main %>% names()
+main.raw %>% names()
 ```
 
 ```{r}
-ces %>% head()
+ces.raw %>% head()
 ```
 
 
 
 ```{r}
-reoffering %>%
+reoffering.raw %>%
   filter(placeonlist != place2006)
 
-reoffering %>%
+reoffering.raw %>%
   group_by(mp) %>%
   summarise(count=n())
 
-reoffering %>%
+reoffering.raw %>%
   filter(reoffered == 1) %>%
   filter(placeonlist != place2006)
 ```
@@ -68,6 +75,7 @@ main <- main.raw %>%
      (place_on_paper < 117) & (election == 2008) ~ 1,
      T ~ 0
   )) %>%
+  mutate(govp2p = gov * p2p) %>%
   mutate(transfersshare = transfers / limit) %>%
   mutate(transfersshare = ifelse(is.na(transfersshare) & !is.na(spending), 0, transfersshare)) %>%
   mutate(donationsshare = amount / limit) %>%
@@ -80,17 +88,30 @@ main <- main.raw %>%
 # main.raw %>% select(order_of_precedence)
 # main.raw %>% select(place_on_paper) 
 ```
-
-
-
 ```{r}
-main %>% select(gov)
-t.test(current_vote ~ p2p, data=main %>% filter(gov == 1))
+View(main)
+```
+
+
+Table 1
+```{r}
+lm(current_vote ~ govp2p + gov + p2p + previous_vote + y2006, data= main)
 ```
 
 ```{r}
-t.test(current_vote ~ p2p, data=main %>% filter(gov == 0))
+# correct filters since N matches
+main %>% filter(gov == 0, y2006 == 0) %>% count()
+main %>% filter(gov == 0, y2006 == 1) %>% count()
+main %>% filter(gov == 1, y2006 == 0) %>% count()
+main %>% filter(gov == 1, y2006 == 1) %>% count()
 ```
+
+```{r}
+t.test(current_vote ~ p2p, data = main %>% filter(gov == 1, y2006 == 1))
+t.test(current_vote ~ p2p, data = main %>% filter(gov == 1, y2006 == 0))
+```
+
+
 
 ```{r}
 main %>%
