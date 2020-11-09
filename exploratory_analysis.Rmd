@@ -83,7 +83,7 @@ main <- main.raw %>%
   mutate(share = ifelse(!is.na(transfersshare + donationsshare) & (transfersshare + donationsshare > 1), 1, transfersshare + donationsshare))
   
 
-
+write.csv(main, "processed_data/main.csv")
 # main.raw %>% names() %>% sort()
 # main.raw %>% select(order_of_precedence)
 # main.raw %>% select(place_on_paper) 
@@ -105,10 +105,26 @@ main %>% filter(gov == 0, y2006 == 1) %>% count()
 main %>% filter(gov == 1, y2006 == 0) %>% count()
 main %>% filter(gov == 1, y2006 == 1) %>% count()
 ```
+ 
+The opportunity to introduce legislation increases the vote share of government candidates by 5.26 percentage points (p=0.01, two-tailed). It has no effectfor opposition members (p=0.57, two-tailed).
+
+Matches our stata output, see Stata-MainResult.png. However p-values remain slightly different despite equal counts, hard to tell what else could be the reason besides different software defaults?
+```{r}
+# t.test(current_vote ~ p2p, data = main %>% filter(gov == 1, y2006 == 1))
+# t.test(current_vote ~ p2p, data = main %>% filter(gov == 1, y2006 == 0))
+
+governing <- t.test
+
+t.test(current_vote ~ p2p, data = main %>% filter(gov == 0))
+main %>%
+  group_by(p2p, gov) %>%
+  summarise(count=n(), .groups='drop') %>%
+  arrange(gov, p2p)
+```
 
 ```{r}
-t.test(current_vote ~ p2p, data = main %>% filter(gov == 1, y2006 == 1))
-t.test(current_vote ~ p2p, data = main %>% filter(gov == 1, y2006 == 0))
+governing$estimate[2] - governing$estimate[1]
+governing$p.value
 ```
 
 
@@ -125,7 +141,7 @@ main %>%
 ```
 
 
-Mediation tests
+Mediation tests - see Stata-Mediation.png
 ```{r}
 main %>% select(media_mentions)
 
@@ -136,6 +152,8 @@ t.test(media_mentions ~ p2p, data=main %>% filter(gov == 1))
 t.test(quality ~ p2p, data=main %>% filter(gov == 1))
 ```
 
+
+This one differs from Stata results - look into how we are calculating.
 ```{r}
 t.test(share ~ p2p, data=main %>% filter(gov == 1))
 ```

@@ -1,0 +1,211 @@
+---
+title: "Untitled"
+author: "Spencer Braun"
+date: "11/8/2020"
+output: pdf_document
+---
+
+
+```{r, message=F}
+library(DOS2)
+library(optmatch)
+library(RItools)
+library(rcbalance)
+
+library(readstata13)
+library(tidyverse)
+library(haven)
+
+source("utility.R")
+```
+
+
+```{r}
+data(dynarski)
+dynarski %>% head()
+```
+
+```{r}
+main <- read.csv("processed_data/main.csv")
+main %>% head()
+main %>% names()
+
+# p2p
+#transfershare
+#donationshare
+#gov
+#y2006
+#female
+#exminister
+#previous_vote
+#media_mentions, quality 
+#years_served
+
+analysis.cols <- main %>% select(
+  p2p,
+  current_vote,
+  transfersshare,
+  donationsshare,
+  gov,
+  y2006,
+  female,
+  exminister,
+  previous_vote,
+  media_mentions,
+  quality,
+  years_served
+) 
+
+covariates <- c(
+  "transfersshare",
+  "donationsshare",
+  "gov",
+  "y2006",
+  "female",
+  "exminister",
+  "previous_vote",
+  "media_mentions",
+  "quality",
+  "years_served"
+)
+
+sapply(analysis.cols, function(x) sum(is.na(x)))
+
+# for now, drop NAs
+
+analysis <- analysis.cols %>% 
+  drop_na() %>%
+  rename(zb = p2p) %>%
+  rename(y = current_vote)
+
+```
+
+
+```{r}
+analysis %>% head()
+```
+
+
+
+```{r}
+plot(xBalance(zb ~ . - 1 -y, data=analysis))
+```
+
+
+```{r, fig.height=11}
+analysis %>%
+  dplyr::select(zb, covariates) %>%
+  pivot_longer(-zb, names_to="covariate", values_to="value") %>%
+  ggplot(aes(x = value, color = as.factor(zb), fill = as.factor(zb))) +
+  geom_histogram(bins=30) +
+  facet_grid(cols=vars(covariate), rows=vars(zb), scales='free_x')
+```
+
+```{r}
+prop.scores <- glm(zb ~ . - y, family=binomial, data=analysis)
+analysis$prop <- prop.scores$fitted.values
+```
+
+
+## Pairwise matching
+
+```{r}
+z <- analysis$zb
+X <- analysis %>% dplyr::select(-c(zb, prop, y))
+
+distance <- smahal(z, X) 
+matches <- pairmatch(distance, data=analysis)
+plot(xBalance(zb ~ . - 1 + strata(matches) , data=analysis))
+
+distance.cal <- addcaliper(distance, z=analysis$zb, p=analysis$prop, caliper=0.1)
+matches.cal <- pairmatch(distance.cal, data=analysis)
+matchesDf.cal <- summarize.match(analysis, matches.cal)
+
+plot(xBalance(zb ~ . + strata(matches.cal) - 1, data=analysis))
+```
+
+
+## Subclassification
+
+
+```{r}
+quant.vec <- quantile(analysis$prop, c(0.2, 0.4, 0.6, 0.8))
+```
+
+
+
+```{r}
+stratified <- analysis %>%
+  mutate(stratum = case_when(
+    prop < quant.vec[1] ~ 1,
+    (quant.vec[1] <= prop) & (prop < quant.vec[2]) ~ 2,
+    (quant.vec[2] <= prop) & (prop < quant.vec[3]) ~ 3,
+    (quant.vec[3] <= prop) & (prop < quant.vec[4]) ~ 4,
+    prop >= quant.vec[4] ~ 5
+  ))
+
+# Number of units by stratum and treatment status
+stratified %>% 
+  group_by(stratum) %>%
+  summarise(
+    treated = sum(zb),
+    control = sum(1-zb),
+    .groups='drop'
+    )
+
+stratified %>%
+  ggplot() + 
+  geom_density(aes(x=prop, fill=factor(stratum)), alpha=0.4) +
+  facet_wrap(vars(zb))
+  
+```
+
+
+
+```{r}
+tau_k <- stratified %>%
+  mutate(ZY1 = zb * y) %>%
+  mutate(ZY0 = (1-zb) * y) %>%
+  group_by(stratum) %>%
+  summarise(
+    Units = n(),
+    YBar1 = sum(ZY1) / sum(zb),
+    YBar0 = sum(ZY0) / sum(1-zb),
+    .groups='drop'
+    ) %>%
+  mutate(DIM=(YBar1 - YBar0) * Units/nrow(stratified)) %>%
+  summarise(sum(DIM)) %>%
+  pull(.)
+
+tau_k  
+
+
+tau_k.var <- stratified %>%
+  group_by(stratum, zb) %>%
+  summarise(
+    N = n(),
+    Var = var(y), 
+    .groups='drop'
+    ) %>%
+  mutate(weighted_V = Var / N) %>%
+  group_by(stratum) %>%
+  summarise(
+    stratum_var = sum(weighted_V) * (sum(N) / nrow(stratified))^2,
+    .groups='drop'
+    ) %>%
+  summarise(sum(stratum_var)) %>%
+  pull(.)
+  
+tau_k.var
+```
+
+
+### Compute a 95% confidence interval 
+
+```{r}
+normalCI <- function(tau, variance) {
+  c(tau - sqrt(variance)*qnorm(.975), tau + sqrt(variance)*qnorm(.975))
+}
+
+normalCI(tau_k, tau_k.var)
+```
