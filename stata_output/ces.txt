@@ -1,0 +1,194 @@
+. use "https://dataverse.harvard.edu/api/access/datafile/2434357?format=original&gbrecs=true"
+
+. **creating user ID
+
+. gen RANK=runiform()
+
+. egen ID=rank(RANK), unique
+
+. gen panel=0
+
+. replace panel=1 if ces08_idnum~=. & survey~=.
+(1,238 real changes made)
+
+.
+. gen ELECTION2006=0 if ces06_pes_a1==.
+(3,250 missing values generated)
+
+. replace ELECTION2006=1 if ces06_pes_a1~=.
+(3,250 real changes made)
+
+.
+. gen ELECTION2008=0 if ces08_pes_a1==.
+(3,689 missing values generated)
+
+. replace ELECTION2008=1 if ces08_pes_a1~=.
+(3,689 real changes made)
+
+.
+. **determining if respondents liked a local candidate
+
+. gen LOCAL08=.
+(9,642 missing values generated)
+
+. replace LOCAL08=0 if ces08_pes_b8d==5
+(1,353 real changes made)
+
+. replace LOCAL08=0 if ces08_pes_b8d==8
+(52 real changes made)
+
+. replace LOCAL08=1 if ces08_pes_b8d==1
+(1,438 real changes made)
+
+.
+. gen LOCAL06=.
+(9,642 missing values generated)
+
+. replace LOCAL06=0 if ces06_pes_i1==5
+(1,599 real changes made)
+
+. replace LOCAL06=0 if ces06_pes_i1 ==8
+(108 real changes made)
+
+. replace LOCAL06=1 if ces06_pes_i1 ==1
+(1,538 real changes made)
+
+.
+. **determining party of the candidate they liked
+
+. gen LOCALLIKE08="CON" if ces08_pes_b8e==2
+(9,056 missing values generated)
+
+. replace LOCALLIKE08="LIB" if ces08_pes_b8e==1
+(397 real changes made)
+
+. replace LOCALLIKE08="NDP" if ces08_pes_b8e==3
+(240 real changes made)
+
+. replace LOCALLIKE08="BQ" if ces08_pes_b8e==4
+(126 real changes made)
+
+.
+. gen LOCALLIKE06="CON" if ces06_pes_i2 ==2
+(9,027 missing values generated)
+
+. replace LOCALLIKE06="LIB" if ces06_pes_i2 ==1
+(449 real changes made)
+
+. replace LOCALLIKE06="NDP" if ces06_pes_i2 ==3
+(237 real changes made)
+
+. replace LOCALLIKE06="BQ" if ces06_pes_i2 ==4
+(165 real changes made)
+
+.
+.
+. **generating variable to determine if they liked the incumbent government candidate
+
+. gen INCUMBENTLIKE06=.
+(9,642 missing values generated)
+
+. replace INCUMBENTLIKE06=0 if lib2006==1 & LOCALLIKE06~="LIB"
+(604 real changes made)
+
+. replace INCUMBENTLIKE06=1 if lib2006==1 & LOCALLIKE06=="LIB"
+(45 real changes made)
+
+.
+. gen INCUMBENTLIKE08=.
+(9,642 missing values generated)
+
+. replace INCUMBENTLIKE08=0 if con2008==1 & LOCALLIKE08~="CON"
+(649 real changes made)
+
+. replace INCUMBENTLIKE08=1 if con2008==1 & LOCALLIKE08=="CON"
+(204 real changes made)
+
+.
+.
+. **indicator of government incumbent
+
+. gen gov=0 if lib2006==0 & ELECTION2006==1
+(9,046 missing values generated)
+
+. replace gov=0 if con2008==0  & ELECTION2008==1
+(1,348 real changes made)
+
+. replace gov=1 if lib2006==1 & ELECTION2006==1
+(158 real changes made)
+
+. replace gov=1 if con2008==1 & ELECTION2008==1
+(710 real changes made)
+
+.
+. label variable lib2006 "Government Incumbent 2006"
+
+. label variable con2008 "Government Incumbent 2008"
+
+. label variable INCUMBENTLIKE06 "Incumbent preferred locally 2006"
+
+. label variable INCUMBENTLIKE08 "Incumbent preferred locally 2008"
+
+. label variable p2p2006 "Proposal power 2006"
+
+. label variable p2p2008 "Proposal power 2008"
+
+. label define YN 0 "No" 1 "Yes"
+
+.
+.
+. label values  lib2006 con2008 INCUMBENTLIKE06 INCUMBENTLIKE08 p2p2006 p2p2008 YN
+
+. **Final Analysis
+
+. tab INCUMBENTLIKE06 p2p2006 if lib2006==1 & ELECTION2006==1, col chi
+
++-------------------+
+| Key               |
+|-------------------|
+|     frequency     |
+| column percentage |
++-------------------+
+
+ Incumbent |
+ preferred |
+   locally |  Proposal power 2006
+      2006 |        No        Yes |     Total
+-----------+----------------------+----------
+        No |        88         25 |       113
+           |     75.86      59.52 |     71.52
+-----------+----------------------+----------
+       Yes |        28         17 |        45
+           |     24.14      40.48 |     28.48
+-----------+----------------------+----------
+     Total |       116         42 |       158
+           |    100.00     100.00 |    100.00
+
+          Pearson chi2(1) =   4.0410   Pr = 0.044
+
+. tab INCUMBENTLIKE08 p2p2008 if con2008==1 & ELECTION2008==1, col chi
+
++-------------------+
+| Key               |
+|-------------------|
+|     frequency     |
+| column percentage |
++-------------------+
+
+ Incumbent |
+ preferred |
+   locally |  Proposal power 2008
+      2008 |        No        Yes |     Total
+-----------+----------------------+----------
+        No |       339        191 |       530
+           |     75.67      66.78 |     72.21
+-----------+----------------------+----------
+       Yes |       109         95 |       204
+           |     24.33      33.22 |     27.79
+-----------+----------------------+----------
+     Total |       448        286 |       734
+           |    100.00     100.00 |    100.00
+
+          Pearson chi2(1) =   6.8689   Pr = 0.009
+
+.

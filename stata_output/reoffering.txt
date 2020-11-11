@@ -1,0 +1,152 @@
+. clear
+
+. use "https://dataverse.harvard.edu/api/access/datafile/2434359?format=original&gbrecs=true"
+
+.
+. **These results cover Tables S14 and S15, demonstrating that election reofferring is not affected by place on the order paper.
+
+.
+. gen P2P=0
+
+. replace P2P=1 if election==2006 & placeonl<88
+(87 real changes made)
+
+. replace P2P=1 if election==2008 & placeonl<117
+(116 real changes made)
+
+.
+. *generating a variable that measures place on the paper normalized for the two parliaments
+
+. gen PLACE=placeon/237 if election==2006
+(255 missing values generated)
+
+. replace PLACE=placeon/255 if election==2008
+(255 real changes made)
+
+.
+. *Table SI4
+
+. logit reoffer P2P
+
+Iteration 0:   log likelihood = -193.94315
+Iteration 1:   log likelihood = -193.66893
+Iteration 2:   log likelihood = -193.66854
+Iteration 3:   log likelihood = -193.66854
+
+Logistic regression                             Number of obs     =        492
+                                                LR chi2(1)        =       0.55
+                                                Prob > chi2       =     0.4586
+Log likelihood = -193.66854                     Pseudo R2         =     0.0014
+
+------------------------------------------------------------------------------
+   reoffered |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         P2P |  -.1977763   .2661654    -0.74   0.457     -.719451    .3238983
+       _cons |   1.949871   .1781301    10.95   0.000     1.600742    2.298999
+------------------------------------------------------------------------------
+
+. bys election: logit reoffer P2P
+
+------------------------------------------------------------------------------------------------------------------------------------
+-> election = 2006
+
+Iteration 0:   log likelihood = -81.977677
+Iteration 1:   log likelihood = -81.751741
+Iteration 2:   log likelihood = -81.750842
+Iteration 3:   log likelihood = -81.750842
+
+Logistic regression                             Number of obs     =        237
+                                                LR chi2(1)        =       0.45
+                                                Prob > chi2       =     0.5006
+Log likelihood = -81.750842                     Pseudo R2         =     0.0028
+
+------------------------------------------------------------------------------
+   reoffered |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         P2P |   .2975761   .4480955     0.66   0.507    -.5806748    1.175827
+       _cons |    1.99243   .2512595     7.93   0.000     1.499971     2.48489
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
+-> election = 2008
+
+Iteration 0:   log likelihood = -110.77985
+Iteration 1:   log likelihood = -109.92359
+Iteration 2:   log likelihood = -109.91835
+Iteration 3:   log likelihood = -109.91835
+
+Logistic regression                             Number of obs     =        255
+                                                LR chi2(1)        =       1.72
+                                                Prob > chi2       =     0.1893
+Log likelihood = -109.91835                     Pseudo R2         =     0.0078
+
+------------------------------------------------------------------------------
+   reoffered |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         P2P |  -.4531665   .3462844    -1.31   0.191    -1.131871    .2255384
+       _cons |   1.905419   .2526262     7.54   0.000      1.41028    2.400557
+------------------------------------------------------------------------------
+
+. *Table SI5
+
+. logit reoffer PLACE
+
+Iteration 0:   log likelihood = -193.94315
+Iteration 1:   log likelihood = -193.82078
+Iteration 2:   log likelihood = -193.82071
+Iteration 3:   log likelihood = -193.82071
+
+Logistic regression                             Number of obs     =        492
+                                                LR chi2(1)        =       0.24
+                                                Prob > chi2       =     0.6207
+Log likelihood = -193.82071                     Pseudo R2         =     0.0006
+
+------------------------------------------------------------------------------
+   reoffered |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       PLACE |  -.2268995   .4587686    -0.49   0.621    -1.126069    .6722705
+       _cons |   1.980265   .2711374     7.30   0.000     1.448845    2.511684
+------------------------------------------------------------------------------
+
+. bys election: logit reoffer PLACE
+
+------------------------------------------------------------------------------------------------------------------------------------
+-> election = 2006
+
+Iteration 0:   log likelihood = -81.977677
+Iteration 1:   log likelihood = -80.606945
+Iteration 2:   log likelihood = -80.581681
+Iteration 3:   log likelihood = -80.581672
+Iteration 4:   log likelihood = -80.581672
+
+Logistic regression                             Number of obs     =        237
+                                                LR chi2(1)        =       2.79
+                                                Prob > chi2       =     0.0947
+Log likelihood = -80.581672                     Pseudo R2         =     0.0170
+
+------------------------------------------------------------------------------
+   reoffered |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       PLACE |  -1.223189   .7442428    -1.64   0.100    -2.681878    .2355004
+       _cons |   2.756119   .4797166     5.75   0.000     1.815892    3.696347
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
+-> election = 2008
+
+Iteration 0:   log likelihood = -110.77985
+Iteration 1:   log likelihood = -110.51194
+Iteration 2:   log likelihood = -110.51143
+Iteration 3:   log likelihood = -110.51143
+
+Logistic regression                             Number of obs     =        255
+                                                LR chi2(1)        =       0.54
+                                                Prob > chi2       =     0.4637
+Log likelihood = -110.51143                     Pseudo R2         =     0.0024
+
+------------------------------------------------------------------------------
+   reoffered |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       PLACE |    .437961   .5989872     0.73   0.465    -.7360323    1.611954
+       _cons |   1.467398   .3336745     4.40   0.000     .8134076    2.121387
+------------------------------------------------------------------------------

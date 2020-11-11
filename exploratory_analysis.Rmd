@@ -16,6 +16,9 @@ library(rcbalance)
 library(readstata13)
 library(tidyverse)
 library(haven)
+library(sandwich)
+library(lmtest)
+library(multiwayvcov)
 
 source("utility.R")
 ```
@@ -95,7 +98,13 @@ View(main)
 
 Table 1
 ```{r}
-lm(current_vote ~ govp2p + gov + p2p + previous_vote + y2006, data= main)
+table1.fit <- lm(current_vote ~ govp2p + gov + p2p + previous_vote + y2006, data= main)
+summary(table1.fit)
+
+# Note the paper uses clustered standard errors on member ID.
+# Output below matches SE's and p values of table 1
+vcov_firm <- cluster.vcov(table1.fit,main$id)
+coeftest(table1.fit, vcov_firm)
 ```
 
 ```{r}
@@ -108,12 +117,14 @@ main %>% filter(gov == 1, y2006 == 1) %>% count()
  
 The opportunity to introduce legislation increases the vote share of government candidates by 5.26 percentage points (p=0.01, two-tailed). It has no effectfor opposition members (p=0.57, two-tailed).
 
-Matches our stata output, see Stata-MainResult.png. However p-values remain slightly different despite equal counts, hard to tell what else could be the reason besides different software defaults?
+Matches our stata output, see Stata-MainResult.png. 
+However p-values remain slightly different despite equal counts, hard to tell what else could be the reason besides different software defaults? Seems related to different DoF, probably not worth digging into 
 ```{r}
 # t.test(current_vote ~ p2p, data = main %>% filter(gov == 1, y2006 == 1))
 # t.test(current_vote ~ p2p, data = main %>% filter(gov == 1, y2006 == 0))
 
-governing <- t.test
+governing <- t.test(current_vote ~ p2p, data = main %>% filter(gov == 1))
+governing
 
 t.test(current_vote ~ p2p, data = main %>% filter(gov == 0))
 main %>%
