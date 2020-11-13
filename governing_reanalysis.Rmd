@@ -1,12 +1,13 @@
 ---
-title: "Untitled"
+title: "governing governing"
 author: "Spencer Braun"
-date: "11/8/2020"
+date: "11/12/2020"
 output:
   pdf_document: default
-  html_document:
-    df_print: paged
+  html_document: default
 ---
+
+
 
 
 ```{r, message=F}
@@ -24,7 +25,7 @@ source("utility.R")
 
 ## Main Analysis
 
-Here I do two things: define an analysis dataframe with the covariates used in the paper and define a larger analysis dataframe including more covariates. I will compare these approaches in generating propensity scores.
+Here I do two things: define an governing dataframe with the covariates used in the paper and define a larger governing dataframe including more covariates. I will compare these approaches in generating propensity scores.
 ```{r}
 main <- read.csv("processed_data/main.csv")
 # main %>% head()
@@ -49,7 +50,6 @@ analysis.cols <- main %>% select(
 covariates <- c(
   "transfersshare",
   "donationsshare",
-  "gov",
   "y2006",
   "female",
   "exminister",
@@ -98,30 +98,28 @@ analysis.large <- analysis.cols.large %>%
   rename(zb = p2p) %>%
   rename(y = current_vote)
 
+governing <- analysis %>% filter(gov == 1) %>% select(-gov)
+governing.large <- analysis.large %>% filter(gov == 1) %>% select(-gov)
 
-main %>%
-  group_by(id) %>%
-  summarise(p2p06 = sum(p2p * y2006),
-            p2p08 = sum(p2p * (1-y2006))) %>%
-  filter(p2p06 != p2p08)
-  
-governing <- analysis %>% filter(gov == 1)
+governing %>%
+  group_by(zb) %>%
+  summarise(count=n())
+
 ```
-Note: matches stata output . gen SHARE=transferss+donationss (29 missing values generated)
 
 
 ### Propensity Scores
 
 ```{r}
-prop.scores <- glm(zb ~ . - y, family=binomial, data=analysis)
-analysis$prop <- prop.scores$fitted.values
+prop.scores <- glm(zb ~ . - y, family=binomial, data=governing)
+governing$prop <- prop.scores$fitted.values
 
 
-prop.scores.large <- glm(zb ~ . - y, family=binomial, data=analysis.large)
-analysis.large$prop.large <- prop.scores.large$fitted.values
+prop.scores.large <- glm(zb ~ . - y, family=binomial, data=governing.large)
+governing.large$prop.large <- prop.scores.large$fitted.values
 
 
-analysis$prop.large <- prop.scores.large$fitted.values
+governing$prop.large <- prop.scores.large$fitted.values
 ```
 
 
@@ -130,14 +128,19 @@ Imbens / Rubin page 282:
 First, it is important to note, however, that the goal is not simply to get the best estimate of the propensity score in terms of mean-integrated-squared-error, or a similar criterion based on minimizing the difference between the estimated and true propensity score. Such a criterion would always suggest that using the true propensity score is preferable to using an estimated propensity score. In contrast, for our purposes, it is often preferable to use the estimated propensity score. The reason is that using the estimated score may lead to superior covariate balance in the sample compared to that achieved when using the true super-population propensity score.
 
 This makes the simpler prop score look better since they are more balanced between treatment and control.
+
+Over lap much better for simple prop score
 ```{r}
-analysis %>% ggplot() + 
-  geom_density(aes(x=prop, fill=factor(zb)), alpha=0.3)
+governing %>% ggplot() + 
+  geom_density(aes(x=prop, fill=factor(zb)), alpha=0.3) + 
+  theme_bw()
+
+
 ```
 
 
 ```{r}
-analysis  %>% ggplot() + 
+governing  %>% ggplot() + 
   geom_density(aes(x=prop.large, fill=factor(zb)), alpha=0.5) + 
   theme_bw()
 ```
@@ -145,13 +148,13 @@ analysis  %>% ggplot() +
 ### Matching
 
 ```{r}
-plot(xBalance(zb ~ . - 1 -y, data=analysis))
-# plot(xBalance(zb ~ . - 1 -y, data=analysis.large))
+plot(xBalance(zb ~ . - 1 -y, data=governing))
+# plot(xBalance(zb ~ . - 1 -y, data=governing.large))
 ```
 
 
 ```{r, fig.height=11}
-analysis %>%
+governing %>%
   dplyr::select(zb, covariates) %>%
   pivot_longer(-zb, names_to="covariate", values_to="value") %>%
   ggplot(aes(x = value, color = as.factor(zb), fill = as.factor(zb))) +
@@ -160,7 +163,7 @@ analysis %>%
 ```
 
 ```{r}
-analysis.large %>%
+governing.large %>%
   ggplot(aes(x = previous_vote, color = as.factor(zb), fill = as.factor(zb))) +
   geom_histogram(bins=30) +
   facet_wrap(.~zb)
@@ -169,7 +172,7 @@ analysis.large %>%
 
 
 ```{r}
-analysis %>%
+governing %>%
   ggplot(aes(x = quality, color = as.factor(zb), fill = as.factor(zb))) +
   geom_histogram(bins=30) +
   facet_wrap(.~zb)
@@ -178,11 +181,11 @@ analysis %>%
 
 ```{r}
 
-names(analysis)
+names(governing)
 
-analysis %>%
+governing %>%
   ggplot() + 
-  geom_histogram(aes(x=prop, fill=factor(y2006)), alpha=0.5)
+  geom_density(aes(x=prop, fill=factor(y2006)), alpha=0.5)
 ```
 
 
@@ -194,128 +197,39 @@ Note: we have the potential to match members to themselves, since ~150 had power
 
 Here I do matching with an without a propensity caliper, but I end up using the propensity caliber one since the prop scores are still one of the worse balanced measures between groups.  
 ```{r}
-z <- analysis$zb
-X <- analysis %>% dplyr::select(-c(zb, prop, y, prop.large))
+z <- governing$zb
+X <- governing %>% dplyr::select(-c(zb, prop, y, prop.large))
 
 distance <- smahal(z, X) 
-distance.cal <- addcaliper(distance, z=analysis$zb, p=analysis$prop, caliper=0.1)
+distance.cal <- addcaliper(distance, z=governing$zb, p=governing$prop, caliper=0.1)
 
-# analysis %>%
+# governing %>%
 #   group_by(zb) %>%
 #   summarise(count=n())
 
 
-matches <- pairmatch(distance, data=analysis)
-plot(xBalance(zb ~ . - 1 + strata(matches) , data=analysis))
+matches <- pairmatch(distance, data=governing)
+plot(xBalance(zb ~ . - 1 + strata(matches) , data=governing))
 
-matches.cal <- pairmatch(distance.cal, data=analysis)
-matches.df <- summarize.match(analysis, matches.cal)
+matches.cal <- pairmatch(distance.cal, data=governing)
+matches.df <- summarize.match(governing, matches.cal)
 
-plot(xBalance(zb ~ . + strata(matches.cal) - 1, data=analysis))
+plot(xBalance(zb ~ . + strata(matches.cal) - 1 - y, data=governing))
 ```
 
 
 I checked on the NAs in the matches - turns out these are just the extra control units. All treatment units are 1:1 matched with a control unit, so we should be 100% good here. 
 ```{r}
 sum(is.na(matches)) #NAs are just extra controls !
-sum(!is.na(matches))
-306/2 == analysis %>% summarise(sum(zb))
+
+sum(!is.na(matches))/2 ==  governing %>% summarise(sum(zb))
 
 
-# analysis[which(is.na(matches)),]
+# governing[which(is.na(matches)),]
 
 sum(is.na(matches.cal))
 sum(!is.na(matches.cal))
 ```
-
-Thought doing the matching separately might be a good thing to look at - to see the effect of potentially matching members to themselves. I don't think we need to use this approach but we could mention that it was considered. 
-
-Just 2006
-```{r}
-analysis.2006 <- analysis %>% filter(y2006==1) %>% select(-y2006)
-
-z <- analysis.2006$zb
-X <- analysis.2006 %>% dplyr::select(-c(zb, prop, y, prop.large))
-
-
-
-distance.2006 <- smahal(z, X) 
-distance.cal.2006 <- addcaliper(distance.2006, z=analysis.2006$zb, p=analysis.2006$prop, caliper=0.1)
-
-matches.2006 <- pairmatch(distance.2006, data=analysis.2006)
-plot(xBalance(zb ~ . - 1 + strata(matches.2006) , data=analysis.2006))
-
-matches.2006.cal <- pairmatch(distance.cal.2006, data=analysis.2006)
-matches.df.2006 <- summarize.match(analysis.2006, matches.2006.cal)
-
-plot(xBalance(zb ~ . + strata(matches.2006.cal) - 1, data=analysis.2006))
-
-matches.df.2006 %>%
-  select(y.1, y.0) %>%
-  pivot_longer(c(y.1, y.0),names_to='Treatment', values_to='Values') %>%
-  ggplot() + 
-  geom_density(aes(x=Values, fill=Treatment), alpha=0.3)
-
-
-
-# DIM current assignment
-T.obs.2006 <- matches.df.2006 %>%
-  summarise(mean(y.1) - mean(y.0)) %>%
-  pull(.)
-
-T.obs.2006
-
-```
-
-
-Just 2008
-```{r}
-analysis.2008 <- analysis %>% filter(y2006==0) %>% select(-y2006)
-
-z <- analysis.2008$zb
-X <- analysis.2008 %>% dplyr::select(-c(zb, prop, y, prop.large))
-
-distance.2008 <- smahal(z, X) 
-distance.cal.2008 <- addcaliper(distance.2008, z=analysis.2008$zb, p=analysis.2008$prop, caliper=0.1)
-
-matches.2008 <- pairmatch(distance.2008, data=analysis.2008)
-plot(xBalance(zb ~ . - 1 + strata(matches.2008) , data=analysis.2008))
-
-matches.2008.cal <- pairmatch(distance.cal.2008, data=analysis.2008)
-matches.df.2008 <- summarize.match(analysis.2008, matches.2008.cal)
-
-plot(xBalance(zb ~ . + strata(matches.2008.cal) - 1, data=analysis.2008))
-
-matches.df.2008 %>%
-  select(y.1, y.0) %>%
-  pivot_longer(c(y.1, y.0),names_to='Treatment', values_to='Values') %>%
-  ggplot() + 
-  geom_density(aes(x=Values, fill=Treatment), alpha=0.3)
-
-
-
-# DIM current assignment
-T.obs.2008 <- matches.df.2008 %>%
-  summarise(mean(y.1) - mean(y.0)) %>%
-  pull(.)
-
-T.obs.2008
-
-```
-
-
-
-
-#### 1:2 Approximate Matching
-
-```{r}
-analysis %>%
-  group_by(zb) %>%
-  summarise(count=n() / nrow(analysis))
-```
-
-
-Not sure we have enough controls to do more than a 1:1 matching
 
 
 ### FRT
@@ -367,9 +281,9 @@ pval
 ```
 
 
-Run sensitivity analysis over all values of gamma needed. Uninterestingly since it starts insignificant it only gets more so.
+Run sensitivity governing over all values of gamma needed. Uninterestingly since it starts insignificant it only gets more so.
 ```{r}
-senm.data1 <- cast.senm(analysis, matches.cal)
+senm.data1 <- cast.senm(governing, matches.cal)
 sen.out <- sensitivitymult::senm(senm.data1$y, senm.data1$z, senm.data1$mset, gamma=1.2, trim = Inf, inner=0)
 
 gamma.compute <- function(gamma) sensitivitymult::senm(senm.data1$y, senm.data1$z, senm.data1$mset, gamma=gamma, trim = Inf, inner=0)$pval
@@ -379,6 +293,8 @@ sensitivity <- sapply(grange, gamma.compute)
 data.frame(gamma=grange, pvalue=sensitivity) %>%
   ggplot(aes(x=gamma, y=sensitivity)) +
   geom_line() +
+  geom_line(aes(x=seq(1,5,length=length(grange)), y=pval), col='navy', linetype='dashed') +
+  geom_line(aes(x=seq(1,5,length=length(grange)), y=0.05), col='red', linetype='dotted') +
   labs(x="Gamma", y="Max P-Value")
 ```
 
@@ -388,13 +304,13 @@ data.frame(gamma=grange, pvalue=sensitivity) %>%
 
 I fixed the HT estimator - the denominator was wrong. The nice thing about these IPW estimators is they do not use the matches, so kind of a separately analytical check that there is an issue with the raw difference in means.
 ```{r}
-horvitz.thompson <- analysis %>%
+horvitz.thompson <- governing %>%
   mutate(ZY1 = (zb * y)/prop) %>%
   mutate(ZY0 = ((1-zb) * y)/(1-prop)) %>%
   summarise(
     Units = n(),
-    YBar1 = sum(ZY1) / nrow(analysis),
-    YBar0 = sum(ZY0) / nrow(analysis),
+    YBar1 = sum(ZY1) / nrow(governing),
+    YBar0 = sum(ZY0) / nrow(governing),
     .groups='drop'
     ) %>%
   mutate(DIM=(YBar1 - YBar0)) %>%
@@ -403,18 +319,6 @@ horvitz.thompson <- analysis %>%
 
 horvitz.thompson
 
-analysis %>%
-  mutate(ZY1 = (zb * y)/prop.large) %>%
-  mutate(ZY0 = ((1-zb) * y)/(1-prop.large)) %>%
-  summarise(
-    Units = n(),
-    YBar1 = sum(ZY1) / nrow(analysis),
-    YBar0 = sum(ZY0) / nrow(analysis),
-    .groups='drop'
-    ) %>%
-  mutate(DIM=(YBar1 - YBar0)) %>%
-  summarise(sum(DIM)) %>%
-  pull(.)
 
 
 ```
@@ -424,7 +328,7 @@ analysis %>%
 
 ```{r}
 
-hayek <- analysis %>%
+hayek <- governing %>%
   mutate(ZY1 = (zb * y)/prop) %>%
   mutate(ZY0 = ((1-zb) * y)/(1-prop)) %>%
   summarise(
@@ -445,12 +349,12 @@ hayek
 ### Subclassification with Neymanian CI's
 
 ```{r}
-quant.vec <- quantile(analysis$prop, c(0.2, 0.4, 0.6, 0.8))
+quant.vec <- quantile(governing$prop, c(0.2, 0.4, 0.6, 0.8))
 ```
 
 
 ```{r}
-stratified <- analysis %>%
+stratified <- governing %>%
   mutate(stratum = case_when(
     prop < quant.vec[1] ~ 1,
     (quant.vec[1] <= prop) & (prop < quant.vec[2]) ~ 2,
