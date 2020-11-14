@@ -114,6 +114,11 @@ main %>% filter(gov == 0, y2006 == 1) %>% count()
 main %>% filter(gov == 1, y2006 == 0) %>% count()
 main %>% filter(gov == 1, y2006 == 1) %>% count()
 ```
+```{r}
+mean((main %>% filter(gov == 1, y2006 == 1))$current_vote)
+mean((main %>% filter(gov == 1, y2006 == 0))$current_vote)
+
+```
  
 The opportunity to introduce legislation increases the vote share of government candidates by 5.26 percentage points (p=0.01, two-tailed). It has no effectfor opposition members (p=0.57, two-tailed).
 
