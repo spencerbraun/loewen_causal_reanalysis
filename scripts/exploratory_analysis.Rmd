@@ -30,14 +30,8 @@ main.raw <- read_dta("original_data/Main\ Data.dta")
 reoffering.raw <- read.dta13("original_data/Reoffering\ Data.dta")
 ```
 
-```{r}
-View(ces.raw)
-View(main.raw)
-View(reoffering.raw)
 
-```
-
-### Exploratory
+### Exploratory Analysis
 
 ```{r}
 main.raw %>% names()
@@ -46,7 +40,6 @@ main.raw %>% names()
 ```{r}
 ces.raw %>% head()
 ```
-
 
 
 ```{r}
@@ -63,7 +56,7 @@ reoffering.raw %>%
 ```
 
 
-### Main Analysis 
+### Recreate Main Analysis 
 ```{r}
 main <- main.raw %>%
   filter(excluded != 1) %>%
@@ -91,9 +84,6 @@ write.csv(main, "processed_data/main.csv")
 # main.raw %>% select(order_of_precedence)
 # main.raw %>% select(place_on_paper) 
 ```
-```{r}
-View(main)
-```
 
 
 Table 1
@@ -120,10 +110,10 @@ mean((main %>% filter(gov == 1, y2006 == 0))$current_vote)
 
 ```
  
-The opportunity to introduce legislation increases the vote share of government candidates by 5.26 percentage points (p=0.01, two-tailed). It has no effectfor opposition members (p=0.57, two-tailed).
+From the paper: The opportunity to introduce legislation increases the vote share of government candidates by 5.26 percentage points (p=0.01, two-tailed). It has no effect for opposition members (p=0.57, two-tailed).
+However these results cannot be duplicated from the datasets provided. There appears to be a typo in the effect size in the paper. The R results match the stata results in effect size.
 
-Matches our stata output, see Stata-MainResult.png. 
-However p-values remain slightly different despite equal counts, hard to tell what else could be the reason besides different software defaults? Seems related to different DoF, probably not worth digging into 
+However p-values remain slightly different despite equal counts.
 ```{r}
 # t.test(current_vote ~ p2p, data = main %>% filter(gov == 1, y2006 == 1))
 # t.test(current_vote ~ p2p, data = main %>% filter(gov == 1, y2006 == 0))
